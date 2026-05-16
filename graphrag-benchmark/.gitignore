@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+data/corpus.json
+data/chroma_index/
+data/metadata.csv
+data/ingest_checkpoint.json
+results/benchmark_results.json
+.chroma/
+*.egg-info/
+.DS_Store

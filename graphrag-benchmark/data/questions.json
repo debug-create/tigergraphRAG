@@ -1,0 +1,182 @@
+[
+  {
+    "id": 1,
+    "category": "A",
+    "question": "What are the main symptoms of COVID-19 pneumonia?",
+    "ground_truth": "COVID-19 symptoms include fever, cough, fatigue, and breathing difficulty. Respiratory symptoms like shortness of breath or chest tightness are common. Lung involvement may be seen on imaging."
+  },
+  {
+    "id": 2,
+    "category": "A",
+    "question": "What is the mechanism of action of remdesivir against coronaviruses?",
+    "ground_truth": "Remdesivir works by interfering with viral replication, particularly targeting the RNA polymerase or a related step in RNA synthesis. It is an antiviral that disrupts the coronavirus's ability to copy its genome."
+  },
+  {
+    "id": 3,
+    "category": "A",
+    "question": "What percentage of COVID-19 patients required ICU admission in early studies?",
+    "ground_truth": "A minority of COVID-19 patients required intensive care, with estimates ranging from roughly 5% to 30% depending on population and setting. Severe cases were more likely to need ICU care."
+  },
+  {
+    "id": 4,
+    "category": "A",
+    "question": "What is the incubation period range for SARS-CoV-2?",
+    "ground_truth": "The incubation period is generally a few days to about two weeks. Most people develop symptoms within about 2 to 14 days of exposure, with a median around 4-6 days."
+  },
+  {
+    "id": 5,
+    "category": "A",
+    "question": "Which cell surface receptor does SARS-CoV-2 use for entry?",
+    "ground_truth": "SARS-CoV-2 enters cells by binding to the ACE2 receptor (angiotensin-converting enzyme 2). This receptor is found on many cell types including lung, heart, and gut cells."
+  },
+  {
+    "id": 6,
+    "category": "A",
+    "question": "What were the most common comorbidities in severe COVID-19 cases?",
+    "ground_truth": "Underlying conditions associated with severe COVID-19 include hypertension, diabetes, obesity, heart disease, and lung conditions. Any answer mentioning 2 or more of these conditions is acceptable."
+  },
+  {
+    "id": 7,
+    "category": "A",
+    "question": "How does dexamethasone reduce COVID-19 mortality?",
+    "ground_truth": "Dexamethasone is a corticosteroid that reduces inflammation. In severe COVID-19 it helps by dampening the immune overreaction, and it has been shown to reduce mortality in patients needing oxygen or ventilation."
+  },
+  {
+    "id": 8,
+    "category": "A",
+    "question": "What is cytokine storm syndrome in the context of COVID-19?",
+    "ground_truth": "Cytokine storm refers to an excessive, dysregulated immune response where the body releases large amounts of inflammatory signaling proteins (cytokines), causing damage to tissues and organs. It is associated with severe COVID-19."
+  },
+  {
+    "id": 9,
+    "category": "A",
+    "question": "What distinguishes SARS-CoV-2 spike protein from SARS-CoV-1?",
+    "ground_truth": "SARS-CoV-2 spike protein has structural differences from SARS-CoV-1 that affect how it binds to ACE2 and how it enters cells. Differences include altered binding affinity or structural features such as a furin cleavage site."
+  },
+  {
+    "id": 10,
+    "category": "A",
+    "question": "What imaging findings are typical of COVID-19 on chest CT?",
+    "ground_truth": "COVID-19 on chest CT often shows ground-glass opacities, typically in both lungs. The distribution is often peripheral or bilateral. Other patterns like consolidation may also occur."
+  },
+  {
+    "id": 11,
+    "category": "B",
+    "question": "Which drugs that inhibit IL-6 signaling have been tested in COVID-19 clinical trials?",
+    "ground_truth": "Drugs that block IL-6 or its receptor have been tested in COVID-19. Tocilizumab is the most notable example. Other IL-6 pathway inhibitors like sarilumab or siltuximab were also studied."
+  },
+  {
+    "id": 12,
+    "category": "B",
+    "question": "What are the connections between ACE2 expression levels and COVID-19 severity?",
+    "ground_truth": "ACE2 is the receptor SARS-CoV-2 uses to enter cells. Its expression level in different tissues affects which organs are vulnerable. Conditions like diabetes or hypertension may alter ACE2 and relate to worse COVID-19 outcomes."
+  },
+  {
+    "id": 13,
+    "category": "B",
+    "question": "Which antiviral drugs used for influenza have also been studied for SARS-CoV-2?",
+    "ground_truth": "Some flu antivirals were repurposed for COVID-19 research. Favipiravir and oseltamivir are examples. Their effectiveness against COVID-19 was generally limited or mixed compared to influenza."
+  },
+  {
+    "id": 14,
+    "category": "B",
+    "question": "What is the relationship between blood type and COVID-19 susceptibility based on research findings?",
+    "ground_truth": "Some studies found associations between blood type and COVID-19 risk, such as type A being linked to higher risk and type O to lower risk. However, evidence was mixed and not conclusive."
+  },
+  {
+    "id": 15,
+    "category": "B",
+    "question": "Which comorbidities are associated with both higher ACE2 expression and worse COVID-19 outcomes?",
+    "ground_truth": "Conditions like diabetes, hypertension, obesity, and cardiovascular disease are associated with both altered ACE2 biology and more severe COVID-19. Any answer connecting comorbidities to worse outcomes is acceptable."
+  },
+  {
+    "id": 16,
+    "category": "B",
+    "question": "What treatments were used for SARS in 2003 that were subsequently studied for COVID-19?",
+    "ground_truth": "Several treatments from the 2003 SARS outbreak were revisited for COVID-19, including antivirals like lopinavir/ritonavir, ribavirin, interferons, and corticosteroids. Convalescent plasma was also used in both epidemics."
+  },
+  {
+    "id": 17,
+    "category": "B",
+    "question": "How does obesity affect both immune response and COVID-19 severity?",
+    "ground_truth": "Obesity is linked to chronic low-grade inflammation and impaired immune function. Obese patients had higher rates of severe COVID-19, ICU admission, and complications. Obesity is considered a major risk factor."
+  },
+  {
+    "id": 18,
+    "category": "B",
+    "question": "Which researchers who worked on MERS-CoV vaccines also contributed to COVID-19 vaccine development?",
+    "ground_truth": "Prior experience with MERS and SARS vaccine research contributed to COVID-19 vaccine development. Research groups at institutions like Oxford, NIH, and companies like BioNTech/Pfizer leveraged prior coronavirus vaccine platforms and spike protein knowledge."
+  },
+  {
+    "id": 19,
+    "category": "B",
+    "question": "What mutations in SARS-CoV-2 affect both transmissibility and vaccine effectiveness?",
+    "ground_truth": "Mutations in the SARS-CoV-2 spike protein, especially in the receptor-binding domain, can increase transmissibility and reduce neutralization by vaccine-induced antibodies. Variants like Delta and Omicron showed both effects."
+  },
+  {
+    "id": 20,
+    "category": "B",
+    "question": "How are T-cell responses related to long COVID symptoms?",
+    "ground_truth": "T-cell responses may be involved in long COVID through persistent immune activation or dysregulation. Some studies link abnormal immune responses, including T-cell dysfunction, to prolonged symptoms like fatigue and brain fog."
+  },
+  {
+    "id": 21,
+    "category": "C",
+    "question": "What proteins are targeted by drugs that have shown efficacy in both COVID-19 patients and cancer patients, and what biological pathways do these proteins belong to?",
+    "ground_truth": "Some drugs used in cancer and COVID-19 overlap, particularly those targeting inflammatory pathways. IL-6 inhibitors (like tocilizumab, used in cancer-related inflammation and COVID-19), JAK inhibitors, or corticosteroids are examples. Any answer identifying shared drug targets or pathways between cancer and COVID-19 is acceptable."
+  },
+  {
+    "id": 22,
+    "category": "C",
+    "question": "Which research institutions that published on ACE2 inhibition also contributed to vaccine trials, and what were their findings on immunological outcomes?",
+    "ground_truth": "Major research institutions involved in both ACE2 biology and vaccine trials include academic medical centers and pharmaceutical companies. Vaccine trials showed immune responses including antibody production and T-cell activation. Any answer connecting ACE2 research or vaccine immunology findings is acceptable."
+  },
+  {
+    "id": 23,
+    "category": "C",
+    "question": "What is the chain of biological events connecting SARS-CoV-2 infection to cardiac complications in patients with pre-existing diabetes?",
+    "ground_truth": "SARS-CoV-2 can cause cardiac complications through direct infection of heart cells via ACE2, inflammation, endothelial damage, and coagulation abnormalities. In diabetic patients, pre-existing cardiovascular vulnerability amplifies these effects. Any answer describing 2+ steps in this chain (infection → inflammation → cardiac damage, or diabetes → increased severity) is acceptable."
+  },
+  {
+    "id": 24,
+    "category": "C",
+    "question": "How do the antiviral mechanisms studied for bat coronaviruses relate to treatments tested in human COVID-19 trials, and which showed cross-species efficacy?",
+    "ground_truth": "Research on bat coronaviruses informed the understanding of mechanisms like RNA polymerase inhibition and protease cleavage, which became targets for COVID-19 drugs. Remdesivir showed benefit in human trials. Any answer connecting bat coronavirus research to human treatment approaches is acceptable."
+  },
+  {
+    "id": 25,
+    "category": "C",
+    "question": "Which cytokines implicated in COVID-19 cytokine storm are also targeted by existing approved biologics for autoimmune diseases, and what were the outcomes when these biologics were repurposed?",
+    "ground_truth": "IL-6, IL-1, and TNF-alpha are cytokines targeted by biologics approved for autoimmune diseases that were also implicated in COVID-19 cytokine storm. Tocilizumab (anti-IL-6) showed benefit in severe COVID-19 trials. Outcomes were mixed for other agents. Any answer mentioning cytokine overlap and repurposing attempts is acceptable."
+  },
+  {
+    "id": 26,
+    "category": "C",
+    "question": "What is the relationship between gut microbiome composition, immune cell activation patterns, and COVID-19 severity outcomes across different patient populations?",
+    "ground_truth": "COVID-19 has been associated with gut microbiome disruption. Reduced microbial diversity and altered composition correlate with immune dysregulation and may be associated with more severe disease or prolonged symptoms. Any answer connecting microbiome, immunity, and COVID-19 severity is acceptable."
+  },
+  {
+    "id": 27,
+    "category": "C",
+    "question": "How do the spike protein mutations in Omicron variants affect binding affinity to ACE2, neutralization by existing antibodies, and clinical disease severity compared to earlier variants?",
+    "ground_truth": "Omicron has many spike mutations that significantly reduce neutralization by vaccine antibodies and monoclonal antibodies, but generally caused less severe disease than Delta. Its ACE2 binding was altered. Any answer correctly describing Omicron's immune escape properties or comparatively milder severity is acceptable."
+  },
+  {
+    "id": 28,
+    "category": "C",
+    "question": "Which clinical trials tested drugs that inhibit both viral replication and inflammatory pathways, what were their primary endpoints, and which showed statistically significant results?",
+    "ground_truth": "Clinical trials like the RECOVERY trial tested drugs addressing both replication and inflammation (e.g., dexamethasone, remdesivir). Primary endpoints often included mortality, time to recovery, or ventilation requirements. Dexamethasone showed significant mortality benefit. Any answer identifying a trial, endpoint, or positive result is acceptable."
+  },
+  {
+    "id": 29,
+    "category": "C",
+    "question": "What are the connections between SARS-CoV-2, its intermediate animal hosts, the genetic mutations that enabled human transmission, and the geographic origin evidence?",
+    "ground_truth": "SARS-CoV-2 is closely related to bat coronaviruses. Intermediate animal hosts may have been involved in transmission to humans. Genetic mutations in the spike protein enabled efficient human ACE2 binding. Early cases were identified in Wuhan, China. Any answer addressing 2+ of these aspects is acceptable."
+  },
+  {
+    "id": 30,
+    "category": "C",
+    "question": "How does the complement system activation in severe COVID-19 relate to coagulation disorders, organ damage patterns, and which therapeutic interventions targeting this pathway showed benefit?",
+    "ground_truth": "Complement system overactivation in severe COVID-19 contributes to inflammation and may promote coagulation abnormalities (thrombosis) and organ damage. Experimental treatments targeting complement were explored. Any answer connecting complement activation to coagulation or organ damage, or mentioning therapeutic attempts, is acceptable."
+  }
+]
