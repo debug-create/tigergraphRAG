@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronRight } from 'lucide-react'
 
 import { checkHealth, getPresetQuestions, loadPipelines, runQuery, QueryResponse } from '@/lib/api'
@@ -53,31 +53,29 @@ export function LiveQueryTab() {
   // Results State
   const [results, setResults] = useState<QueryResponse | null>(null)
 
-  import('react').then(React => {
-    React.useEffect(() => {
-      async function init() {
-        const isOnline = await checkHealth();
-        setIsApiOnline(isOnline);
-        if (isOnline) {
-          try {
-            const qs = await getPresetQuestions();
-            if (qs && qs.length > 0) {
-              const catA = qs.find((q: any) => q.category === 'A');
-              const catB = qs.find((q: any) => q.category === 'B');
-              const catC = qs.find((q: any) => q.category === 'C');
-              
-              const presets = [];
-              if (catA) presets.push({ label: 'Single hop (Cat A)', query: catA.question, isBest: false });
-              if (catB) presets.push({ label: 'Two hop (Cat B)', query: catB.question, isBest: false });
-              if (catC) presets.push({ label: 'Three hop (Cat C)', query: catC.question, isBest: true });
-              if (presets.length > 0) setPresetQueries(presets);
-            }
-          } catch (e) {}
-        }
+  useEffect(() => {
+    async function init() {
+      const isOnline = await checkHealth();
+      setIsApiOnline(isOnline);
+      if (isOnline) {
+        try {
+          const qs = await getPresetQuestions();
+          if (qs && qs.length > 0) {
+            const catA = qs.find((q: any) => q.category === 'A');
+            const catB = qs.find((q: any) => q.category === 'B');
+            const catC = qs.find((q: any) => q.category === 'C');
+            
+            const presets = [];
+            if (catA) presets.push({ label: 'Single hop (Cat A)', query: catA.question, isBest: false });
+            if (catB) presets.push({ label: 'Two hop (Cat B)', query: catB.question, isBest: false });
+            if (catC) presets.push({ label: 'Three hop (Cat C)', query: catC.question, isBest: true });
+            if (presets.length > 0) setPresetQueries(presets);
+          }
+        } catch (e) {}
       }
-      init();
-    }, []);
-  });
+    }
+    init();
+  }, []);
 
   const handleLoadPipelines = async () => {
     setIsLoadingPipelines(true);
