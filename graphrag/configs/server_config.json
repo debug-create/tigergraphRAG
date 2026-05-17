@@ -17,7 +17,7 @@
   "llm_config": {
     "token_limit": 0,
     "authentication_configuration": {
-      "GOOGLE_API_KEY": "AIzaSyA94827EK06m4dLBZ1A-gHsgiuo2L_7OG4"
+      "GOOGLE_API_KEY": "your_gemini_api_key_here"
     },
     "embedding_service": {
       "model_name": "text-embedding-004",

@@ -1,4 +1,5 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+export const isApiDisabled = process.env.NEXT_PUBLIC_API_URL === undefined || process.env.NEXT_PUBLIC_API_URL === "";
 
 export interface PipelineResult {
   pipeline: string;

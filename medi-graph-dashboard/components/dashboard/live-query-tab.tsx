@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { ChevronRight } from 'lucide-react'
 
-import { checkHealth, getPresetQuestions, loadPipelines, runQuery, QueryResponse } from '@/lib/api'
+import { checkHealth, getPresetQuestions, loadPipelines, runQuery, QueryResponse, isApiDisabled } from '@/lib/api'
 
 // Fallback data for offline mode
 const FALLBACK_QUERIES = [
@@ -54,6 +54,7 @@ export function LiveQueryTab() {
   const [results, setResults] = useState<QueryResponse | null>(null)
 
   useEffect(() => {
+    if (isApiDisabled) return;
     async function init() {
       const isOnline = await checkHealth();
       setIsApiOnline(isOnline);
@@ -99,16 +100,20 @@ export function LiveQueryTab() {
     setHasRun(false)
     setResults(null)
     
-    if (isApiOnline) {
+    let success = false
+    if (isApiOnline && !isApiDisabled) {
       try {
         const res = await runQuery(query)
         setResults(res)
+        success = true
       } catch (e) {
         console.error(e)
       }
-    } else {
+    }
+    
+    if (!success) {
       // Fallback fake delay
-      await new Promise(r => setTimeout(r, 2500))
+      await new Promise(r => setTimeout(r, 2000))
     }
     
     setIsRunning(false)
@@ -128,22 +133,24 @@ export function LiveQueryTab() {
       {/* LEFT COLUMN - Input Panel */}
       <div className="space-y-6">
         {/* Status Banner */}
-        <div className={`p-3 text-xs rounded border flex items-center justify-between ${isApiOnline ? 'bg-emerald-900/20 border-emerald-900/30 text-emerald-400' : 'bg-red-900/20 border-red-900/30 text-red-400'}`}>
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${isApiOnline ? 'bg-emerald-500' : 'bg-red-500 animate-pulse'}`} />
-            {isApiOnline ? 'API Connected' : 'Backend offline — start with: cd graphrag-benchmark && uvicorn api_server:app --port 8080'}
+        {isApiOnline && (
+          <div className="p-3 text-xs rounded border flex items-center justify-between bg-emerald-900/20 border-emerald-900/30 text-emerald-400">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              API Connected
+            </div>
+            {!apiReady && (
+              <button 
+                onClick={handleLoadPipelines}
+                disabled={isLoadingPipelines}
+                className="px-2 py-1 bg-emerald-900/50 hover:bg-emerald-800 rounded transition-colors"
+              >
+                {isLoadingPipelines ? 'Loading pipelines... (~30s first time)' : 'Load Pipelines'}
+              </button>
+            )}
+            {apiReady && <span className="font-medium">Pipelines ready ✓</span>}
           </div>
-          {isApiOnline && !apiReady && (
-            <button 
-              onClick={handleLoadPipelines}
-              disabled={isLoadingPipelines}
-              className="px-2 py-1 bg-emerald-900/50 hover:bg-emerald-800 rounded transition-colors"
-            >
-              {isLoadingPipelines ? 'Loading pipelines... (~30s first time)' : 'Load Pipelines'}
-            </button>
-          )}
-          {isApiOnline && apiReady && <span className="font-medium">Pipelines ready ✓</span>}
-        </div>
+        )}
 
         <div>
           <h2 className="text-base font-medium text-foreground mb-2">Run a query</h2>

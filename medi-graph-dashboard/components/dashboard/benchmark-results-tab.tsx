@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { getBenchmarkResults, BenchmarkSummary } from '@/lib/api'
+import { getBenchmarkResults, BenchmarkSummary, isApiDisabled } from '@/lib/api'
 
 // Fallback data
 const FALLBACK_SUMMARY: BenchmarkSummary = {
@@ -17,6 +17,10 @@ export function BenchmarkResultsTab() {
   const [isOffline, setIsOffline] = useState(false);
   
   useEffect(() => {
+    if (isApiDisabled) {
+      setIsOffline(false);
+      return;
+    }
     async function loadData() {
       try {
         const data = await getBenchmarkResults();
