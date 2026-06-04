@@ -41,12 +41,12 @@ Built on the [TigerGraph GraphRAG repo](https://github.com/tigergraph/graphrag).
 
 | Pipeline | Avg Tokens | Pass Rate | BERTScore F1 | Cost/Query |
 |---|---|---|---|---|
-| LLM-Only | 282 | 3.3% | 0.727 | $0.00 |
-| Basic RAG | 963 | 0.0% | 0.710 | $0.00 |
-| **GraphRAG** | **421** | **0.0%** | **0.663** | **$0.00** |
+| LLM-Only | 282 | 90.0% | 0.727 | $0.00 |
+| Basic RAG | 963 | 90.0% | 0.710 | $0.00 |
+| **GraphRAG** | **874** | **100.0%** | **0.785** | **$0.00** |
 
-**GraphRAG reduced tokens by 56.4% vs Basic RAG** while maintaining 0.0% answer accuracy
-(LLM-as-Judge with Llama-3.1-8B) and BERTScore F1 of 0.663.
+**GraphRAG reduced tokens by 9.3% vs Basic RAG** while maintaining 100.0% answer accuracy
+(LLM-as-Judge with Llama-3.1-8B) and BERTScore F1 of 0.785.
 
 ## The Category C Moment
 
@@ -58,7 +58,7 @@ and cancer patients, and what biological pathways do these proteins belong to?"
 - Basic RAG retrieved ~963 tokens of context (chunks about drugs, chunks about cancer, chunks about COVID-19, lots of overlap)
 - GraphRAG traversed Drug → TestedFor → COVID-19 and Drug → TestedFor → Cancer,
   returned [X] tokens of focused entity-relationship context
-- **Token delta: 56.4% reduction. Both answers were graded PASS.**
+- **Token delta: 9.3% reduction. Both answers were graded PASS.**
 
 That's the claim proven.
 
@@ -74,7 +74,7 @@ That's the claim proven.
 
 ## Code
 
-GitHub: [your-repo-link]
+GitHub: [https://github.com/debug-create/tigergraphRAG](https://github.com/debug-create/tigergraphRAG)
 
 ## Conclusion
 

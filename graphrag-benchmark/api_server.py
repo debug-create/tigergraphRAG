@@ -197,3 +197,152 @@ def get_preset_questions():
         return []
     with open(questions_path, encoding="utf-8") as f:
         return json.load(f)
+
+
+@app.get("/scale/comparison")
+def scale_comparison():
+    """Returns Round 1 vs Round 2 metrics for the scale story panel."""
+    results_path = pathlib.Path("results/benchmark_results.json")
+    verification_path = pathlib.Path("data/token_count_verification.json")
+
+    # Round 2 token verification
+    token_verification = None
+    if verification_path.exists():
+        with open(verification_path, encoding="utf-8") as f:
+            token_verification = json.load(f)
+
+    # Compute Round 2 metrics from benchmark_results.json if available
+    r2_token_reduction = None
+    r2_pass_rate = None
+    r2_bertscore = None
+    if results_path.exists():
+        with open(results_path, encoding="utf-8") as f:
+            results = json.load(f)
+        if results:
+            reductions, passes, bertscores = [], [], []
+            for q in results:
+                # Support both flat (pipeline1/pipeline2/pipeline3) and nested formats
+                p2 = q.get("pipeline2", q.get("basic_rag", {}))
+                p3 = q.get("pipeline3", q.get("graphrag", {}))
+
+                # Flat format: total_tokens directly; nested: tokens.prompt + tokens.completion
+                if "total_tokens" in p2:
+                    rag_total = p2.get("total_tokens", 0)
+                else:
+                    t = p2.get("tokens", {})
+                    rag_total = t.get("prompt", 0) + t.get("completion", 0)
+
+                if "total_tokens" in p3:
+                    graph_total = p3.get("total_tokens", 0)
+                else:
+                    t = p3.get("tokens", {})
+                    graph_total = t.get("prompt", 0) + t.get("completion", 0)
+
+                if rag_total > 0:
+                    reductions.append((rag_total - graph_total) / rag_total * 100)
+
+                judge = p3.get("llm_judge", p3.get("llm_judge_pass"))
+                if judge is not None:
+                    if isinstance(judge, bool):
+                        passes.append(1 if judge else 0)
+                    elif isinstance(judge, str) and judge in ("PASS", "FAIL"):
+                        passes.append(1 if judge == "PASS" else 0)
+
+                bs = p3.get("bert_f1", p3.get("bertscore_f1"))
+                if bs is not None:
+                    bertscores.append(bs)
+
+            if reductions:
+                r2_token_reduction = round(sum(reductions) / len(reductions), 1)
+            if passes:
+                r2_pass_rate = round(sum(passes) / len(passes) * 100, 1)
+            if bertscores:
+                r2_bertscore = round(sum(bertscores) / len(bertscores), 3)
+
+    return {
+        "round1": {
+            "corpus_tokens": 2_000_000,
+            "label": "Round 1 · 2M tokens",
+        },
+        "round2": {
+            "corpus_tokens": token_verification.get("total_tokens") if token_verification else None,
+            "label": "Round 2 · 100M+ tokens",
+            "avg_token_reduction_pct": r2_token_reduction,
+            "llm_judge_pass_rate": r2_pass_rate,
+            "bertscore_f1": r2_bertscore,
+        },
+        "token_verification": token_verification,
+    }
+
+
+@app.get("/cost/projection")
+def cost_projection(daily_queries: int = 100000, reduction_pct: float = 65.0):
+    """
+    Calculates annual cost savings (Gemini 1.5 Flash pricing).
+    Reads avg token counts from benchmark_results.json.
+    Gemini 1.5 Flash: $0.075/1M input tokens, $0.30/1M output tokens.
+    """
+    PRICE_INPUT_PER_M = 0.075
+    PRICE_OUTPUT_PER_M = 0.30
+
+    results_path = pathlib.Path("results/benchmark_results.json")
+    avg_rag_input, avg_rag_output = 4000, 800   # fallback estimates
+    avg_graph_input, avg_graph_output = 1400, 800
+
+    if results_path.exists():
+        with open(results_path, encoding="utf-8") as f:
+            results = json.load(f)
+        if results:
+            rag_inputs, rag_outputs, graph_inputs, graph_outputs = [], [], [], []
+            for q in results:
+                p2 = q.get("pipeline2", q.get("basic_rag", {}))
+                p3 = q.get("pipeline3", q.get("graphrag", {}))
+
+                # Support flat and nested token formats
+                if "input_tokens" in p2:
+                    ri = p2.get("input_tokens", 0)
+                    ro = p2.get("output_tokens", 0)
+                else:
+                    ri = p2.get("tokens", {}).get("prompt", 0)
+                    ro = p2.get("tokens", {}).get("completion", 0)
+
+                if "input_tokens" in p3:
+                    gi = p3.get("input_tokens", 0)
+                    go = p3.get("output_tokens", 0)
+                else:
+                    gi = p3.get("tokens", {}).get("prompt", 0)
+                    go = p3.get("tokens", {}).get("completion", 0)
+
+                if ri: rag_inputs.append(ri)
+                if ro: rag_outputs.append(ro)
+                if gi: graph_inputs.append(gi)
+                if go: graph_outputs.append(go)
+
+            if rag_inputs:
+                avg_rag_input = sum(rag_inputs) / len(rag_inputs)
+                avg_rag_output = sum(rag_outputs) / len(rag_outputs)
+                avg_graph_input = sum(graph_inputs) / len(graph_inputs)
+                avg_graph_output = sum(graph_outputs) / len(graph_outputs)
+
+    annual_queries = daily_queries * 365
+
+    rag_annual_cost = annual_queries * (
+        avg_rag_input / 1_000_000 * PRICE_INPUT_PER_M +
+        avg_rag_output / 1_000_000 * PRICE_OUTPUT_PER_M
+    )
+    graph_annual_cost = annual_queries * (
+        avg_graph_input / 1_000_000 * PRICE_INPUT_PER_M +
+        avg_graph_output / 1_000_000 * PRICE_OUTPUT_PER_M
+    )
+    annual_savings = rag_annual_cost - graph_annual_cost
+
+    return {
+        "daily_queries": daily_queries,
+        "annual_queries": annual_queries,
+        "basic_rag_annual_cost_usd": round(rag_annual_cost, 2),
+        "graphrag_annual_cost_usd": round(graph_annual_cost, 2),
+        "annual_savings_usd": round(annual_savings, 2),
+        "reduction_pct": round((1 - avg_graph_input / max(avg_rag_input, 1)) * 100, 1),
+        "avg_rag_tokens_per_query": round(avg_rag_input + avg_rag_output),
+        "avg_graphrag_tokens_per_query": round(avg_graph_input + avg_graph_output),
+    }

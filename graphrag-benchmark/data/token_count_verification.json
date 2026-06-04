@@ -1,0 +1,13 @@
+{
+  "total_tokens": 207030062,
+  "paper_count": 46488,
+  "avg_tokens_per_paper": 4453,
+  "verified_with": "google-genai  gemini-2.5-flash  count_tokens",
+  "timestamp": "2026-06-01T12:53:06.043230Z",
+  "target_was": 110000000,
+  "target_met": true,
+  "files_used": [
+    "0000.parquet",
+    "0001.parquet"
+  ]
+}

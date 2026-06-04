@@ -2,6 +2,7 @@
 
 import { Database, Zap, Network } from 'lucide-react'
 import { ThemeToggle } from './theme-toggle'
+import { TokenVerificationBadge } from './token-verification-badge'
 
 export function DashboardHeader() {
   return (
@@ -13,6 +14,7 @@ export function DashboardHeader() {
           </div>
           <div className="text-xs text-muted-foreground">/</div>
           <div className="text-sm text-muted-foreground">GraphRAG Inference Benchmark</div>
+          <TokenVerificationBadge />
         </div>
         <div className="flex items-center gap-4">
           <div className="flex gap-3">

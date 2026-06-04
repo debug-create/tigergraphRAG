@@ -62,7 +62,7 @@ def _extract_entities(question: str) -> list[str]:
     return entities[:5]
 
 
-def _find_relevant_docs(question: str, corpus: list[dict], top_k: int = 2) -> list[dict]:
+def _find_relevant_docs(question: str, corpus: list[dict], top_k: int = 3) -> list[dict]:
     """Simple keyword-match retrieval: score each doc by question-word overlap."""
     q_words = set(re.findall(r"\b[a-z]{4,}\b", question.lower()))
     scored = []
@@ -93,7 +93,7 @@ def _build_mock_context(question: str, entities: list[str], docs: list[dict]) ->
     # Relevant document snippets (compact)
     for i, doc in enumerate(docs):
         text = doc.get("abstract", "") or doc.get("text", "")
-        snippet = text[:150].strip()
+        snippet = text[:1000].strip()
         if snippet:
             title = doc.get("title", f"Document {i+1}")[:40]
             lines.append(f"Key finding [{title}]:")
@@ -256,7 +256,7 @@ class GraphRAGPipeline(BasePipeline):
         t0 = time.time()
         corpus = _load_corpus()
         entities = _extract_entities(question)
-        docs = _find_relevant_docs(question, corpus, top_k=1)
+        docs = _find_relevant_docs(question, corpus, top_k=2)
         graph_context = _build_mock_context(question, entities, docs)
 
         prompt = f"""Answer using this graph context:

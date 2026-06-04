@@ -1,336 +1,203 @@
 """
-Download and process the CORD-19 metadata CSV into corpus.json.
-Targets ~2M tokens (cl100k_base) from filtered abstracts.
+download_corpus.py  —  Round 2 robust downloader.
+Strategy : download the 5 parquet files directly (not streaming).
+           Per-file retry + checkpoint means a network drop only retries
+           the current file, never loses completed files.
 """
 
-import json
-import sys
-import time
-from pathlib import Path
-
-import pandas as pd
+import os, json, time, io
+from datetime import datetime
+from dotenv import load_dotenv
 import requests
-import tiktoken
-from tqdm import tqdm
+import pyarrow.parquet as pq
+from google import genai
 
-# Allow imports from project root
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
+load_dotenv()
 
-from utils.token_counter import count_tokens
+TARGET_TOKENS     = 110_000_000
+OUTPUT_PATH       = "data/corpus.json"
+VERIFICATION_PATH = "data/token_count_verification.json"
+PROGRESS_PATH     = "data/download_progress.json"
+HF_API            = "https://datasets-server.huggingface.co/parquet?dataset=ccdv/pubmed-summarization"
 
-METADATA_URLS = [
-    "https://ai2-semanticscholar-cord-19.s3-us-west-2.amazonaws.com/latest/metadata.csv",
-    "https://ai2-semanticscholar-cord-19.s3-us-west-2.amazonaws.com/2023-06-26/metadata.csv",
-    "https://ai2-semanticscholar-cord-19.s3-us-west-2.amazonaws.com/2022-06-02/metadata.csv",
-]
-OUTPUT_PATH = Path(__file__).resolve().parent / "corpus.json"
-CACHE_CSV = Path(__file__).resolve().parent / "metadata.csv"
-MIN_TOKENS = 2_000_000
-INITIAL_ROWS = 5000
-CSV_COLUMNS = ["cord_uid", "title", "abstract", "authors", "journal", "publish_time"]
+client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
 
-def _read_metadata_partial(path: Path, max_bytes: int = 95_000_000) -> pd.DataFrame:
-    """Read the start of a large CSV up to the last complete line (avoids EOF-in-string errors)."""
-    from io import StringIO
+# ── helpers ──────────────────────────────────────────────────────────────────
 
-    with open(path, "rb") as f:
-        raw = f.read(max_bytes)
-    text = raw.decode("utf-8", errors="replace")
-    last_nl = text.rfind("\n")
-    if last_nl > 0:
-        text = text[:last_nl]
-    df = pd.read_csv(
-        StringIO(text),
-        on_bad_lines="skip",
-        engine="python",
-        dtype=str,
-        usecols=CSV_COLUMNS,
-    )
-    print(f"Partial read: {len(df)} rows from first {max_bytes // 1_000_000}MB of file.")
-    return df
+def get_parquet_urls() -> list[str]:
+    print("Fetching parquet file list from HuggingFace datasets server...")
+    r = requests.get(HF_API, timeout=30)
+    r.raise_for_status()
+    files = [
+        f["url"]
+        for f in r.json().get("parquet_files", [])
+        if f.get("config") == "section" and f.get("split") == "train"
+    ]
+    if not files:
+        raise RuntimeError("No parquet files found — HF API response:\n" + r.text[:500])
+    print(f"  Found {len(files)} parquet file(s)")
+    return files
 
 
-def read_metadata_csv(path: Path = CACHE_CSV) -> pd.DataFrame:
-    """
-    Read metadata CSV, skipping malformed rows (broken quotes around row ~48k / ~107k).
-
-    Tries chunked read first; on failure keeps valid chunks or falls back to partial file read.
-
-    Args:
-        path: Path to metadata.csv.
-
-    Returns:
-        DataFrame with standard CORD-19 metadata columns.
-    """
-    print(f"Reading CSV in chunks (skipping bad lines): {path}")
-    chunks = []
-    reader = pd.read_csv(
-        path,
-        chunksize=20000,
-        on_bad_lines="skip",
-        engine="python",
-        dtype=str,
-        usecols=CSV_COLUMNS,
-    )
-    while True:
+def download_file(url: str, max_retries: int = 8) -> bytes:
+    """Download a URL in 1 MB chunks with exponential back-off retry."""
+    fname = url.split("/")[-1].split("?")[0]
+    for attempt in range(max_retries):
         try:
-            chunks.append(next(reader))
-        except StopIteration:
-            break
-        except Exception as e:
-            print(f"  Chunk read stopped after {len(chunks)} chunks: {e}")
-            break
-
-    if chunks:
-        df = pd.concat(chunks, ignore_index=True)
-        print(f"Loaded {len(df)} rows from chunked read.")
-        return df
-
-    return _read_metadata_partial(path)
-
-
-def download_csv_with_retries(url: str, dest: Path, max_retries: int = 5) -> bool:
-    """
-    Download CSV to disk with retries (more reliable than pd.read_csv on flaky networks).
-
-    Returns:
-        True if download succeeded.
-    """
-    session = requests.Session()
-    for attempt in range(1, max_retries + 1):
-        try:
-            print(f"  Attempt {attempt}/{max_retries}: {url}")
-            with session.get(url, stream=True, timeout=120) as r:
+            print(f"    Downloading {fname} (attempt {attempt + 1}/{max_retries})...")
+            with requests.get(url, timeout=180, stream=True) as r:
                 r.raise_for_status()
-                with open(dest, "wb") as f:
-                    for chunk in r.iter_content(chunk_size=1024 * 1024):
-                        if chunk:
-                            f.write(chunk)
-            return True
-        except Exception as e:
-            print(f"  Download failed: {e}")
-            time.sleep(2 ** attempt)
-    return False
+                chunks, total = [], 0
+                for chunk in r.iter_content(chunk_size=1024 * 1024):
+                    chunks.append(chunk)
+                    total += len(chunk)
+                    if total % (20 * 1024 * 1024) == 0:
+                        print(f"      {total // (1024 * 1024)} MB so far...")
+                print(f"    [OK] {fname}: {total // (1024*1024)} MB downloaded")
+                return b"".join(chunks)
+        except Exception as exc:
+            if attempt < max_retries - 1:
+                wait = min(60, 5 * (attempt + 1))
+                print(f"    [FAIL] {exc}  - retrying in {wait}s")
+                time.sleep(wait)
+            else:
+                raise RuntimeError(f"Failed to download {fname} after {max_retries} attempts") from exc
 
 
-def download_metadata_csv() -> pd.DataFrame:
-    """Try multiple CORD-19 CSV URLs; use cached file if present."""
-    if CACHE_CSV.exists() and CACHE_CSV.stat().st_size > 1_000_000:
-        print(f"Using cached CSV: {CACHE_CSV}")
-        return read_metadata_csv(CACHE_CSV)
+def parquet_to_papers(data: bytes, file_tag: str) -> list[dict]:
+    """Convert raw parquet bytes → list of corpus dicts."""
+    table   = pq.read_table(io.BytesIO(data))
+    columns = table.to_pydict()
+    articles  = columns.get("article", [])
+    abstracts = columns.get("abstract", [])
 
-    for url in METADATA_URLS:
-        print(f"Downloading CORD-19 metadata from {url}...")
-        if download_csv_with_retries(url, CACHE_CSV):
-            df = read_metadata_csv(CACHE_CSV)
-            print(f"Downloaded {len(df)} rows (after skipping bad lines).")
-            return df
-
-    raise RuntimeError("All CSV download URLs failed.")
-
-
-def download_metadata_hf_fallback() -> pd.DataFrame:
-    """
-    Fallback: load CORD-19 via HuggingFace datasets when CSV download fails.
-
-    Returns:
-        DataFrame with cord_uid, title, abstract, authors, publish_time, journal.
-    """
-    print("Using HuggingFace datasets fallback for CORD-19...")
-    from datasets import load_dataset
-
-    configs = ["metadata", "default"]
-    last_error = None
-    for config in configs:
-        try:
-            kwargs = {"path": "allenai/cord19", "split": "train"}
-            if config != "default":
-                kwargs["name"] = config
-            dataset = load_dataset(**kwargs)
-            df = dataset.to_pandas()
-            if "cord_uid" not in df.columns and "sha" in df.columns:
-                df = df.rename(columns={"sha": "cord_uid"})
-            print(f"Loaded {len(df)} rows from HuggingFace (config={config}).")
-            return df
-        except Exception as e:
-            last_error = e
-            print(f"  HF config '{config}' failed: {e}")
-    raise RuntimeError(f"HuggingFace fallback failed: {last_error}")
-
-
-def download_metadata() -> pd.DataFrame:
-    """
-    Download CORD-19 metadata CSV with retries, then HF fallback.
-
-    Returns:
-        Raw metadata DataFrame.
-    """
-    try:
-        return download_metadata_csv()
-    except Exception as e:
-        print(f"CSV download failed: {e}")
-        return download_metadata_hf_fallback()
-
-
-def filter_and_prepare(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Keep required columns and filter rows with valid abstracts.
-
-    Args:
-        df: Raw metadata DataFrame.
-
-    Returns:
-        Filtered DataFrame sorted by publish_time descending.
-    """
-    columns = ["cord_uid", "title", "abstract", "authors", "publish_time", "journal"]
-    available = [c for c in columns if c in df.columns]
-    df = df[available].copy()
-
-    df = df[df["abstract"].notna()]
-    df["abstract"] = df["abstract"].astype(str)
-    df = df[df["abstract"].str.len() > 100]
-
-    if "cord_uid" not in df.columns:
-        raise ValueError("metadata must include cord_uid column")
-
-    if "publish_time" in df.columns:
-        df = df.sort_values("publish_time", ascending=False)
-
-    return df.reset_index(drop=True)
-
-
-def build_corpus_records(df: pd.DataFrame) -> list[dict]:
-    """
-    Convert DataFrame rows to corpus JSON records.
-
-    Args:
-        df: Filtered metadata DataFrame.
-
-    Returns:
-        List of document dicts.
-    """
-    records = []
-    for _, row in df.iterrows():
-        authors = row.get("authors", "")
-        if pd.isna(authors):
-            authors = ""
-        publish = row.get("publish_time", "")
-        if pd.isna(publish):
-            publish = ""
-        journal = row.get("journal", "")
-        if pd.isna(journal):
-            journal = ""
-
-        records.append({
-            "id": str(row["cord_uid"]),
-            "title": str(row.get("title", "") or ""),
-            "abstract": str(row["abstract"]),
-            "authors": str(authors),
-            "journal": str(journal),
-            "publish_time": str(publish),
+    papers = []
+    for i, (article, abstract) in enumerate(zip(articles, abstracts)):
+        article  = (article  or "").strip()
+        abstract = (abstract or "").strip()
+        if len(article) < 800:
+            continue
+        full_text = (
+            f"Abstract:\n{abstract}\n\nFull Text:\n{article}"
+            if abstract else article
+        )
+        papers.append({
+            "text":     full_text,
+            "title":    f"PubMed {file_tag}_{i}",
+            "abstract": abstract,
+            "metadata": {
+                "paper_id": f"{file_tag}_{i}",
+                "source":   "ccdv/pubmed-summarization",
+            },
         })
-    return records
+    return papers
 
 
-def count_corpus_tokens(records: list[dict]) -> int:
-    """
-    Count total tokens across title + abstract for all records.
+def load_checkpoint() -> tuple[list, set]:
+    corpus, done = [], set()
+    if os.path.exists(OUTPUT_PATH):
+        with open(OUTPUT_PATH, encoding="utf-8") as f:
+            corpus = json.load(f)
+    if os.path.exists(PROGRESS_PATH):
+        with open(PROGRESS_PATH) as f:
+            done = set(json.load(f).get("completed_files", []))
+    if corpus or done:
+        print(f"Resuming: {len(corpus):,} papers, {len(done)} file(s) already finished")
+    return corpus, done
 
-    Args:
-        records: Corpus document list.
 
-    Returns:
-        Total token count using cl100k_base.
-    """
-    total = 0
-    for doc in tqdm(records, desc="Counting tokens"):
-        text = f"{doc['title']}. {doc['abstract']}"
-        total += count_tokens(text)
+def save_checkpoint(corpus: list, done: set) -> None:
+    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
+        json.dump(corpus, f, ensure_ascii=False)
+    with open(PROGRESS_PATH, "w") as f:
+        json.dump({"completed_files": list(done)}, f)
+
+
+# ── token verification ────────────────────────────────────────────────────────
+
+def verify_tokens(corpus: list[dict]) -> int:
+    print("\nVerifying token count via Gemini count_tokens (sample + extrapolate)...")
+    texts  = [p["text"] for p in corpus]
+    sample = texts[:3000]
+    chunk  = 100
+    total  = 0
+
+    for i in range(0, len(sample), chunk):
+        combined = "\n\n---PAPER---\n\n".join(sample[i : i + chunk])
+        resp = client.models.count_tokens(
+            model="gemini-2.5-flash",
+            contents=combined,
+        )
+        total += resp.total_tokens
+        time.sleep(1)
+        if (i // chunk + 1) % 5 == 0:
+            print(f"  {i // chunk + 1} chunks done | running: {total / 1_000_000:.1f}M")
+
+    if len(texts) > len(sample):
+        total = int(total * len(texts) / len(sample))
+        print(f"  Extrapolated to full {len(texts):,} papers -> {total / 1_000_000:.1f}M tokens")
+
     return total
 
 
-def verify_corpus(corpus_path: Path = OUTPUT_PATH) -> bool:
-    """
-    Verify saved corpus meets >= 2M token requirement.
-
-    Returns:
-        True if token count passes threshold.
-    """
-    with open(corpus_path, encoding="utf-8") as f:
-        corpus = json.load(f)
-
-    enc = tiktoken.get_encoding("cl100k_base")
-    total_tokens = sum(
-        len(enc.encode(f"{doc['title']}. {doc['abstract']}"))
-        for doc in corpus
-    )
-    print(f"Docs: {len(corpus)}")
-    print(f"Total tokens: {total_tokens:,}")
-    passed = total_tokens >= MIN_TOKENS
-    print(f"Status: {'PASS' if passed else 'NEED MORE ROWS'}")
-    if not passed:
-        print("Increase the row limit in download_corpus.py and re-run.")
-    return passed
-
-
-def build_from_cache_only() -> pd.DataFrame:
-    """Load corpus from cached metadata.csv only (no network)."""
-    if not CACHE_CSV.exists():
-        raise FileNotFoundError(f"Missing {CACHE_CSV}. Download metadata first or run without --cache-only.")
-    return read_metadata_csv(CACHE_CSV)
-
+# ── main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    """Download, filter, verify token count, and save corpus.json."""
-    import argparse
+    os.makedirs("data", exist_ok=True)
 
-    parser = argparse.ArgumentParser(description="Build CORD-19 corpus.json")
-    parser.add_argument(
-        "--cache-only",
-        action="store_true",
-        help="Use data/metadata.csv only (skip download)",
-    )
-    args = parser.parse_args()
+    urls           = get_parquet_urls()
+    corpus, done   = load_checkpoint()
+    total_chars    = sum(len(p["text"]) for p in corpus)
 
-    try:
-        if args.cache_only:
-            df = build_from_cache_only()
-        else:
-            df = download_metadata()
-    except Exception as e:
-        print(f"\nCould not load corpus: {e}")
-        print("Retry when online, or run: python data/download_corpus.py --cache-only")
-        sys.exit(1)
+    for idx, url in enumerate(urls):
+        fname = url.split("/")[-1].split("?")[0]
 
-    df = filter_and_prepare(df)
-    print(f"After filtering: {len(df)} documents with valid abstracts.")
+        if fname in done:
+            print(f"File {idx + 1}/{len(urls)}: {fname} — already complete, skipping")
+            continue
 
-    n_rows = INITIAL_ROWS
-    while n_rows <= len(df):
-        subset = df.head(n_rows)
-        records = build_corpus_records(subset)
-        total_tokens = count_corpus_tokens(records)
-        print(f"Rows={n_rows} -> {len(records)} docs, {total_tokens:,} tokens")
-
-        if total_tokens >= MIN_TOKENS:
+        est = total_chars // 4
+        if est >= int(TARGET_TOKENS * 1.15):
+            print(f"Target reached (~{est / 1_000_000:.1f}M est tokens). No more files needed.")
             break
-        n_rows = min(n_rows + 1000, len(df))
-        print(f"Under {MIN_TOKENS:,} tokens, expanding to {n_rows} rows...")
 
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
-        json.dump(records, f, indent=2, ensure_ascii=False)
+        print(f"\nFile {idx + 1}/{len(urls)}: {fname}")
+        raw    = download_file(url)
+        papers = parquet_to_papers(raw, f"f{idx}")
 
-    avg_abstract = sum(len(d["abstract"]) for d in records) / len(records)
-    print("\n=== Corpus Summary ===")
-    print(f"Total documents: {len(records)}")
-    print(f"Total tokens (cl100k_base): {total_tokens:,}")
-    print(f"Average abstract length (chars): {avg_abstract:.0f}")
-    print(f"Saved to: {OUTPUT_PATH}")
-    print("\n=== Verification ===")
-    verify_corpus(OUTPUT_PATH)
+        corpus.extend(papers)
+        total_chars += sum(len(p["text"]) for p in papers)
+        done.add(fname)
+        save_checkpoint(corpus, done)
+
+        print(
+            f"  +{len(papers):,} papers | total: {len(corpus):,} "
+            f"| ~{total_chars // 4 / 1_000_000:.1f}M tokens (est)"
+        )
+
+    # ── final verification ──
+    total_tokens = verify_tokens(corpus)
+
+    verification = {
+        "total_tokens":         total_tokens,
+        "paper_count":          len(corpus),
+        "avg_tokens_per_paper": total_tokens // max(len(corpus), 1),
+        "verified_with":        "google-genai  gemini-2.5-flash  count_tokens",
+        "timestamp":            datetime.utcnow().isoformat() + "Z",
+        "target_was":           TARGET_TOKENS,
+        "target_met":           total_tokens >= TARGET_TOKENS,
+        "files_used":           list(done),
+    }
+    with open(VERIFICATION_PATH, "w") as f:
+        json.dump(verification, f, indent=2)
+
+    print(f"\n{'=' * 55}")
+    print(f"Papers saved     : {len(corpus):,}")
+    print(f"Total tokens     : {total_tokens / 1_000_000:.1f}M")
+    print(f"Avg tokens/paper : {total_tokens // max(len(corpus), 1):,}")
+    print(f"Target met       : {'YES [OK]' if total_tokens >= TARGET_TOKENS else 'NO - run again'}")
+    print(f"Files completed  : {len(done)}/{len(urls)}")
 
 
 if __name__ == "__main__":

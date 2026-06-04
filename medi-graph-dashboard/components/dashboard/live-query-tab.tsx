@@ -43,6 +43,20 @@ export function LiveQueryTab() {
   const [query, setQuery] = useState('')
   const [isRunning, setIsRunning] = useState(false)
   const [hasRun, setHasRun] = useState(false)
+  const [elapsedTime, setElapsedTime] = useState(0)
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (isRunning) {
+      const startTime = Date.now()
+      interval = setInterval(() => {
+        setElapsedTime((Date.now() - startTime) / 1000)
+      }, 100)
+    } else {
+      setElapsedTime(0)
+    }
+    return () => clearInterval(interval)
+  }, [isRunning])
   
   // API State
   const [isApiOnline, setIsApiOnline] = useState(false)
@@ -90,12 +104,14 @@ export function LiveQueryTab() {
     }
   }
 
-  const handleQuery = (selectedQuery: string) => {
+  const handleQueryAndRun = (selectedQuery: string) => {
     setQuery(selectedQuery)
+    handleRun(selectedQuery)
   }
 
-  const handleRun = async () => {
-    if (!query.trim()) return
+  const handleRun = async (queryOverride?: string) => {
+    const activeQuery = queryOverride || query
+    if (!activeQuery.trim()) return
     setIsRunning(true)
     setHasRun(false)
     setResults(null)
@@ -103,7 +119,7 @@ export function LiveQueryTab() {
     let success = false
     if (isApiOnline && !isApiDisabled) {
       try {
-        const res = await runQuery(query)
+        const res = await runQuery(activeQuery)
         setResults(res)
         success = true
       } catch (e) {
@@ -164,18 +180,25 @@ export function LiveQueryTab() {
           className="w-full h-32 bg-card border border-border text-foreground placeholder-muted-foreground text-sm p-3 font-sans rounded focus:outline-none focus:ring-1 focus:ring-accent resize-none"
         />
 
-        <div className="space-y-2">
-          {presetQueries.map((q) => (
-            <button
-              key={q.label}
-              onClick={() => handleQuery(q.query)}
-              className="w-full text-left text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 group"
-            >
-              <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <span className="text-xs flex-1">{q.label}: <span className="truncate inline-block max-w-[200px] align-bottom ml-1">{q.query}</span></span>
-              {q.isBest && <span className="text-xs bg-secondary px-1.5 py-0.5 rounded text-muted-foreground shrink-0">best demo</span>}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => handleQueryAndRun('What is ACE2?')}
+            className="border border-white/10 bg-white/5 hover:bg-white/10 text-xs text-white/60 hover:text-white/80 px-3 py-1.5 rounded-full transition-colors"
+          >
+            Simple: What is ACE2?
+          </button>
+          <button
+            onClick={() => handleQueryAndRun('Which IL-6 inhibitors were tested in COVID-19 trials?')}
+            className="border border-white/10 bg-white/5 hover:bg-white/10 text-xs text-white/60 hover:text-white/80 px-3 py-1.5 rounded-full transition-colors"
+          >
+            Multi-hop: IL-6 inhibitors in trials
+          </button>
+          <button
+            onClick={() => handleQueryAndRun('What proteins targeted by anti-cancer drugs appear in COVID-19 trials?')}
+            className="border border-white/10 bg-white/5 hover:bg-white/10 text-xs text-white/60 hover:text-white/80 px-3 py-1.5 rounded-full transition-colors"
+          >
+            Complex: Anti-cancer drugs in COVID trials
+          </button>
         </div>
 
         <button
@@ -194,18 +217,51 @@ export function LiveQueryTab() {
 
       {/* RIGHT COLUMN - Results Panel */}
       <div className="space-y-6">
-        {hasRun ? (
-          <>
+        {isRunning ? (
+          <div className="space-y-3">
+            {['p1', 'p2', 'p3'].map((pid) => (
+              <div key={pid} className="p-4 border border-border rounded flex gap-4 items-start bg-card/50">
+                <div className="flex-1 space-y-3 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-muted-foreground animate-pulse" />
+                      <span className="text-xs font-mono text-muted-foreground">
+                        {pid === 'p1' ? 'LLM-Only' : pid === 'p2' ? 'Basic RAG' : 'GraphRAG'}
+                      </span>
+                    </div>
+                    <span className="text-xs font-mono text-muted-foreground">Running... {elapsedTime.toFixed(1)}s</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-3 w-3/4 bg-muted animate-pulse rounded" />
+                    <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : hasRun ? (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
             {/* Pipeline Results */}
             <div className="space-y-3">
               {['p1', 'p2', 'p3'].map((pid) => {
                 const pipeline = displayData[pid as keyof typeof displayData];
+                
+                let tokenColor = "text-foreground";
+                if (pid === 'p1') tokenColor = "text-red-400";
+                if (pid === 'p2') tokenColor = "text-orange-400";
+                if (pid === 'p3') tokenColor = "text-emerald-400";
+
+                const isGraphRAG = pid === 'p3';
+                const savedTokens = isGraphRAG 
+                  ? Math.round((1 - displayData.p3.tokens / displayData.p2.tokens) * 100) 
+                  : 0;
+
                 return (
                   <div
                     key={pid}
                     className={`p-4 border rounded flex gap-4 items-start ${
-                      pid === 'p3'
-                        ? 'border-accent bg-emerald-900/5 border-l-2'
+                      isGraphRAG
+                        ? 'border-accent bg-emerald-900/5 border-l-2 shadow-[0_0_20px_rgba(52,211,153,0.15)]'
                         : 'border-border'
                     }`}
                   >
@@ -218,10 +274,19 @@ export function LiveQueryTab() {
                         {pipeline.answer}
                       </p>
                     </div>
-                    <div className="flex gap-2 shrink-0">
-                      <span className="text-xs font-mono text-foreground px-2 py-1 bg-secondary rounded">{pipeline.tokens} tok</span>
-                      <span className="text-xs font-mono text-foreground px-2 py-1 bg-secondary rounded">{pipeline.latency}</span>
-                      <span className={`text-xs font-mono text-foreground px-2 py-1 bg-secondary rounded ${pipeline.status === 'PASS' ? 'text-emerald-400' : pipeline.status === 'FAIL' ? 'text-red-400' : ''}`}>{pipeline.status}</span>
+                    <div className="flex flex-col gap-2 items-end shrink-0">
+                      <span className={`text-xl font-bold font-mono ${tokenColor}`}>
+                        {new Intl.NumberFormat('en-US').format(pipeline.tokens)} tokens
+                      </span>
+                      {isGraphRAG && savedTokens > 0 && (
+                        <span className="rounded-full bg-emerald-500/15 text-emerald-400 text-sm px-3 py-1">
+                          {savedTokens}% fewer tokens
+                        </span>
+                      )}
+                      <div className="flex gap-2 mt-1">
+                        <span className="text-xs font-mono text-foreground px-2 py-1 bg-secondary rounded">{pipeline.latency}</span>
+                        <span className={`text-xs font-mono text-foreground px-2 py-1 bg-secondary rounded ${pipeline.status === 'PASS' ? 'text-emerald-400' : pipeline.status === 'FAIL' ? 'text-red-400' : ''}`}>{pipeline.status}</span>
+                      </div>
                     </div>
                   </div>
                 )
@@ -229,12 +294,12 @@ export function LiveQueryTab() {
             </div>
 
             {/* Summary Stat */}
-            <div className="text-sm text-accent font-medium">
+            <div className="text-sm text-accent font-medium mt-6 mb-4">
               GraphRAG used {reduction}% fewer tokens than Basic RAG on this query
             </div>
 
             {/* Token Bar Visualization */}
-            <div className="space-y-4 pt-4">
+            <div className="space-y-4 pt-2">
               {['p1', 'p2', 'p3'].map((pid) => {
                 const pipeline = displayData[pid as keyof typeof displayData];
                 // P2 is baseline for max width, unless P1 is somehow larger
@@ -258,7 +323,7 @@ export function LiveQueryTab() {
                 )
               })}
             </div>
-          </>
+          </div>
         ) : (
           <div className="h-64 flex items-center justify-center border border-border border-dashed rounded">
             <div className="text-center space-y-2">

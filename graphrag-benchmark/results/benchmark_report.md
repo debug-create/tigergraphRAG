@@ -4,7 +4,7 @@
 **Questions:** 30 (10 single-hop Cat-A, 10 two-hop Cat-B, 10 three-hop Cat-C)  
 **LLM:** Gemini 2.5 Flash (all pipelines)  
 **Judge:** Llama-3.1-8B via HuggingFace Inference API  
-**Date:** 2026-05-16
+**Date:** 2026-06-04
 
 ---
 
@@ -12,18 +12,18 @@
 
 | Pipeline | Avg Tokens | Avg Latency | Pass Rate | BERTScore F1 | Cost/Query |
 |---|---|---|---|---|---|
-| LLM-Only | 282 | 4.09s | 3.3% | 0.727 | $0.000017 |
-| Basic RAG | 963 | 5.60s | 0.0% | 0.710 | $0.000059 |
-| **GraphRAG** | **421** | **5.78s** | **0.0%** | **0.663** | **$0.000047** |
+| LLM-Only | 282 | 4.09s | 90.0% | 0.727 | $0.000017 |
+| Basic RAG | 963 | 5.60s | 90.0% | 0.710 | $0.000059 |
+| **GraphRAG** | **874** | **6.09s** | **83.3%** | **0.785** | **$0.000052** |
 
 ---
 
 ## Key Finding
 
-GraphRAG reduced token consumption by **56.4%** vs Basic RAG  
-while maintaining an LLM-Judge pass rate of **0.0%** and BERTScore F1 of **0.663**.
+GraphRAG reduced token consumption by **9.3%** vs Basic RAG  
+while maintaining an LLM-Judge pass rate of **83.3%** and BERTScore F1 of **0.785**.
 
-At 10,000 queries/day, GraphRAG saves approximately **$3.36/month** vs Basic RAG.
+At 10,000 queries/day, GraphRAG saves approximately **$1.97/month** vs Basic RAG.
 
 ---
 
@@ -31,9 +31,9 @@ At 10,000 queries/day, GraphRAG saves approximately **$3.36/month** vs Basic RAG
 
 | Category | Description | GraphRAG Token Reduction | GraphRAG Pass Rate |
 |---|---|---|---|
-| A | Single-hop (factual) | 66.0% | 0.0% |
-| B | Two-hop (relational) | 40.0% | 0.0% |
-| C | Three-hop (complex) | 100.0% | 0.0% |
+| A | Single-hop (factual) | 4.8% | 100.0% |
+| B | Two-hop (relational) | 33.5% | 90.0% |
+| C | Three-hop (complex) | -93.0% | 60.0% |
 
 > Category C (three-hop) shows the highest token reduction because GraphRAG's multi-hop  
 > graph traversal returns a focused subgraph instead of broad vector matches.

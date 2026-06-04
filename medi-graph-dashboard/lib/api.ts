@@ -62,3 +62,18 @@ export async function checkHealth() {
     return false;
   }
 }
+
+export async function getScaleComparison() {
+  const res = await fetch(`${API_BASE}/scale/comparison`);
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
+
+export async function getCostProjection(dailyQueries: number, reductionPct: number) {
+  const res = await fetch(
+    `${API_BASE}/cost/projection?daily_queries=${dailyQueries}&reduction_pct=${reductionPct}`
+  );
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
+

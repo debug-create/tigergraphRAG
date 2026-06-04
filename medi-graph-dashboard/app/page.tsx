@@ -4,6 +4,9 @@ import { useState } from 'react'
 import { DashboardHeader } from '@/components/dashboard/header'
 import { LiveQueryTab } from '@/components/dashboard/live-query-tab'
 import { BenchmarkResultsTab } from '@/components/dashboard/benchmark-results-tab'
+import { ScaleComparisonPanel } from '@/components/dashboard/scale-comparison-panel'
+import { CostCalculator } from '@/components/dashboard/cost-calculator'
+import { HeroStats } from '@/components/HeroStats'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('query')
@@ -11,6 +14,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <DashboardHeader />
+      <HeroStats />
       
       <div className="max-w-7xl mx-auto px-8 py-8">
         {/* Minimal Tab Navigation */}
@@ -40,6 +44,15 @@ export default function Home() {
         {/* Tab Content */}
         {activeTab === 'query' && <LiveQueryTab />}
         {activeTab === 'results' && <BenchmarkResultsTab />}
+
+        {/* Scale Story Section */}
+        <section className="mt-12">
+          <h2 className="mb-4 text-lg font-semibold text-foreground">Scale story</h2>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ScaleComparisonPanel />
+            <CostCalculator />
+          </div>
+        </section>
       </div>
     </div>
   )

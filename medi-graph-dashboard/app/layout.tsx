@@ -7,8 +7,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'MediGraph — GraphRAG Inference Benchmark',
-  description: 'GraphRAG Inference Benchmark Dashboard for CORD-19 biomedical corpus',
+  title: 'MediGraph | GraphRAG vs RAG Benchmark — 100M Token Scale',
+  description: 'Live benchmark comparing LLM-Only, Basic RAG, and GraphRAG across 100M tokens of biomedical literature. Built for TigerGraph GraphRAG Hackathon 2026.',
   generator: 'v0.app',
   icons: {
     icon: [

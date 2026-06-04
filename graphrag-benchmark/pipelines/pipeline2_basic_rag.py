@@ -87,14 +87,22 @@ class BasicRAGPipeline(BasePipeline):
         all_metadata = []
 
         for doc in corpus:
-            text = f"{doc['title']}. {doc['abstract']}"
+            # Round 2 format: has "text" field with full paper body
+            if "text" in doc:
+                text = doc["text"]
+                doc_id = doc.get("metadata", {}).get("paper_id", "") or doc.get("id", str(id(doc)))
+            else:
+                # Round 1 format: title + abstract
+                text = f"{doc['title']}. {doc['abstract']}"
+                doc_id = doc["id"]
+            title = doc.get("title", "")
             chunks = self._chunk_text(text)
             for i, chunk in enumerate(chunks):
                 all_chunks.append(chunk)
-                all_ids.append(f"{doc['id']}_chunk_{i}")
+                all_ids.append(f"{doc_id}_chunk_{i}")
                 all_metadata.append({
-                    "doc_id": doc["id"],
-                    "title": doc["title"],
+                    "doc_id": doc_id,
+                    "title": title,
                     "chunk_index": i,
                 })
 
