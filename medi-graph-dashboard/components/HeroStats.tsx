@@ -116,8 +116,8 @@ export function HeroStats() {
         ])
 
         setData({
-          tokenReduction: benchmark.token_reduction_pct || 78.7,
-          accuracy: benchmark.pipeline3?.pass_rate || 94.2,
+          tokenReduction: benchmark.summary?.token_reduction_pct || 78.7,
+          accuracy: benchmark.summary?.pipeline3?.pass_rate || 94.2,
           scale: scale.total_tokens || 100000000,
           costSavings: cost.annual_savings_usd || 124500
         })

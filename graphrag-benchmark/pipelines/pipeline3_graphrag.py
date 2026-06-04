@@ -64,7 +64,7 @@ def _extract_entities(question: str) -> list[str]:
 
 def _find_relevant_docs(question: str, corpus: list[dict], top_k: int = 3) -> list[dict]:
     """Simple keyword-match retrieval: score each doc by question-word overlap."""
-    q_words = set(re.findall(r"\b[a-z]{4,}\b", question.lower()))
+    q_words = set(re.findall(r"\b\w{3,}\b", question.lower()))
     scored = []
     for doc in corpus:
         text = (doc.get("abstract", "") or doc.get("text", "") or "").lower()
